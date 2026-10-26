@@ -1,0 +1,12 @@
+*.class
+*.jar
+*.log
+*.tmp
+.idea/
+.vscode/
+*.iml
+__pycache__/
+*.pyc
+node_modules/
+.env
+.DS_Store
