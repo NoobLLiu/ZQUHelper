@@ -227,6 +227,7 @@ class _TimetablePageState extends State<TimetablePage> {
 
   Widget _courseCard(BuildContext context, Course c, int span) {
     final color = courseColor(c.name);
+    final theme = Theme.of(context);
     return GestureDetector(
       onTap: () => _showCourseDetail(c),
       child: Container(
