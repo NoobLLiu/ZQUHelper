@@ -16,6 +16,9 @@ node_modules/
 
 # Go
 server/bin/
+server/config/config.yaml
+server/data/
+*.db
 *.exe
 *.test
 

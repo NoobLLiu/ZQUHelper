@@ -9,10 +9,22 @@ storage:
   sqlite_path: "data/zquhelper.db"
 
 jwgl:
-  # 教务系统地址（校内直连）；校外走 WebVPN 时配置 webvpn_url
-  base_url: "https://jwgl.zqu.edu.cn"
-  webvpn_url: ""
+  # 课表抓取 worker（server/tools/zqu_fetch/fetch_worker.py）需要的配置。
+  # 依赖 Playwright + ddddocr + OpenCV，建议用已装好依赖的 venv 解释器完整路径。
+  # 本机已装好依赖的 venv 示例：
+  #   C:\Users\BrianLiu\.workbuddy\binaries\python\envs\default\Scripts\python.exe
+  python_path: "python"
+  # fetch_worker.py 所在目录；留空用 tools/zqu_fetch
+  worker_dir: ""
+  # 教务账号密码（服务端抓取用）
+  username: ""
+  password: ""
+  # true 时浏览器无头运行；调试抓取时可改为 false 观察浏览器行为
+  headless: false
 
 auth:
+  # 客户端连接本服务端的账号密码（与教务账号无关）
+  username: "admin"
+  password: "change-me"
   # Token 有效期（小时）
   token_ttl_hours: 720

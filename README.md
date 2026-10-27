@@ -40,6 +40,7 @@ ZQUHelper/
 ├── server/                # Go + Gin 服务端
 │   ├── cmd/server/        # 入口
 │   ├── internal/          # 业务模块（api/auth/sync/jwgl/express/dorm/library/store）
+│   ├── tools/zqu_fetch/   # 课表抓取 Python worker（Playwright，肇庆学院专用）
 │   └── start.bat          # 双击启动
 └── README.md
 ```
@@ -55,6 +56,30 @@ ZQUHelper/
 | 自建资源库 | `server/internal/library` | 个人资料收集与检索 |
 | 认证 | `server/internal/auth` | 账号体系与 Token |
 | 手环端工具 | `apps/vela/calculator` | Vela 快应用（首个：计算器） |
+
+## 当前进度
+
+- ✅ **课程表模块（Windows/Android + 服务端）**：服务端由 Go 编排精简版 Python 抓取 worker
+  （Playwright 登录教务 + 整学期课表 JSON），结果缓存 SQLite 并经 REST 下发；
+  客户端登录页 + 周视图课表页。Vela 手环端暂未做。
+- 双端均无公网 IP 的连接方案见 [docs/connectivity.md](docs/connectivity.md)（推荐 Tailscale 组网）。
+
+## 开源致谢
+
+本项目是集锦项目，开发中引入/参考了以下优秀的开源项目（排名不分先后，均未修改其仓库内容）：
+
+- [ShiGuangSchedule/shiguangschedule](https://github.com/ShiGuangSchedule/shiguangschedule) —— 课程表模块的页面布局与交互参考。
+- [jiushuang/flutter_beautiful_ui](https://github.com/jiushuang/flutter_beautiful_ui) —— 客户端整体 UI 风格参考。
+- 自研课程表抓取脚本（本地 GetTimeTable/zqu-timetable-scraper，已精简为肇庆学院专用 worker 收录于 `server/tools/zqu_fetch/`），其能力依赖：
+  - [microsoft/playwright-python](https://github.com/microsoft/playwright-python) —— 真实浏览器自动化（登录、WebVPN 滑块）。
+  - [sml2h3/ddddocr](https://github.com/sml2h3/ddddocr) —— 教务图形验证码 OCR。
+  - [opencv/opencv-python](https://github.com/opencv/opencv-python) —— 滑块缺口定位与验证码预处理。
+- Go 侧依赖：
+  - [gin-gonic/gin](https://github.com/gin-gonic/gin) —— Web 框架。
+  - [modernc.org/sqlite](https://gitlab.com/cznic/sqlite) —— 纯 Go SQLite 驱动（免 CGO）。
+  - [gopkg.in/yaml.v3](https://gopkg.in/yaml.v3) —— 配置解析。
+
+> 感谢以上项目的作者与贡献者。本仓库仅在自己代码中引用与致谢，不会打扰上游。
 
 ## 开发规范（重要）
 
