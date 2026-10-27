@@ -1,19 +1,30 @@
 # Vela 快应用：计算器
 
-目标设备：**小米手环 10 NFC**。按 Vela 快应用规范手写，使用官方 AIoT-IDE 打开、调试与打包。
+目标设备：**小米手环 10 NFC**。基于官方 **AIoT-toolkit 2.0**（`aiot` CLI），可脱离 AIoT-IDE 用命令行构建，也支持在 AIoT-IDE 中打开调试。
 
-## 目录
+## 目录（AIoT-toolkit 2.0 结构）
 
 ```
 calculator/
-├── manifest.json    # 应用信息 / 路由 / 显示配置
-├── package.json
-├── .npmrc           # npmmirror 镜像（依赖安装失败时用）
-├── sign/            # 发布签名（private.pem / certificate.pem，已被 git 忽略）
+├── package.json           # scripts: build / release / start，devDependencies 含 aiot-toolkit
+├── .npmrc                 # npmmirror 镜像
+├── sign/                  # 发布签名（private.pem / certificate.pem，已被 git 忽略）
 └── src/
+    ├── manifest.json      # 应用信息 / 路由 / deviceTypeList: ["watch"] / 图标
+    ├── assets/icon.png    # 应用图标
     ├── app.ux
     └── pages/index/index.ux   # 计算器页面
 ```
+
+## 命令行构建
+
+```bash
+npm install        # 安装 aiot-toolkit
+npm run build      # 生成 dist/*.debug.rpk（调试包，工具链内置调试签名）
+npm run release    # 发布包，需 sign/ 下有正式签名
+```
+
+- 每次提交 GitHub Actions 会自动构建 rpk 并上传为 artifact（`.github/workflows/ci.yml` 的 `vela` job）。
 
 ## 用 AIoT-IDE 调试
 
