@@ -1,0 +1,279 @@
+<template>
+  <div class="page">
+    <!-- 显示区：表达式 + 结果 -->
+    <div class="screen">
+      <text class="expr">{{ expression || ' ' }}</text>
+      <text class="result">{{ result }}</text>
+    </div>
+    <!-- 按键区：5 行，深色圆键，橙色运算键 -->
+    <div class="pad">
+      <div class="row" for="{{rows}}">
+        <text
+          for="{{ $item }}"
+          class="key {{ $item.cls }}"
+          onclick="onKey($item.label)"
+        >{{ $item.label }}</text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style>
+.page {
+  flex-direction: column;
+  background-color: #000000;
+  padding: 8px;
+}
+.screen {
+  flex: 1;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-end;
+  padding: 6px 8px 10px 8px;
+}
+.expr {
+  font-size: 15px;
+  color: #8a8a8e;
+  max-lines: 2;
+  text-overflow: ellipsis;
+}
+.result {
+  font-size: 30px;
+  color: #ffffff;
+  margin-top: 4px;
+}
+.pad {
+  flex-direction: column;
+  margin-bottom: 6px;
+}
+.row {
+  flex-direction: row;
+  justify-content: space-between;
+  margin-top: 5px;
+}
+.key {
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  background-color: #1c1c1e;
+  color: #ffffff;
+  font-size: 18px;
+  text-align: center;
+}
+.key.fn {
+  background-color: #333338;
+  color: #ffb340;
+}
+.key.op {
+  background-color: #2a2a30;
+  color: #ff9f0a;
+}
+.key.eq {
+  background-color: #ff9f0a;
+  color: #000000;
+}
+.key.wide {
+  width: 85px;
+}
+</style>
+
+<script>
+const OPS = '+−×÷'
+
+export default {
+  data: {
+    expression: '',
+    result: '0',
+    rows: [
+      [
+        { label: 'C', cls: 'fn' },
+        { label: '⌫', cls: 'fn' },
+        { label: '÷', cls: 'op' },
+        { label: '×', cls: 'op' }
+      ],
+      [
+        { label: '7', cls: '' },
+        { label: '8', cls: '' },
+        { label: '9', cls: '' },
+        { label: '−', cls: 'op' }
+      ],
+      [
+        { label: '4', cls: '' },
+        { label: '5', cls: '' },
+        { label: '6', cls: '' },
+        { label: '+', cls: 'op' }
+      ],
+      [
+        { label: '1', cls: '' },
+        { label: '2', cls: '' },
+        { label: '3', cls: '' },
+        { label: '±', cls: 'fn' }
+      ],
+      [
+        { label: '0', cls: 'wide' },
+        { label: '.', cls: '' },
+        { label: '=', cls: 'eq' }
+      ]
+    ]
+  },
+
+  onInit() {
+    this.refresh()
+  },
+
+  onKey(label) {
+    if (label === 'C') {
+      this.expression = ''
+    } else if (label === '⌫') {
+      this.expression = this.expression.slice(0, -1)
+    } else if (label === '±') {
+      this.toggleSign()
+    } else if (label === '=') {
+      this.commit()
+    } else if (OPS.indexOf(label) >= 0) {
+      this.inputOp(label)
+    } else {
+      this.inputText(label)
+    }
+    this.refresh()
+  },
+
+  // 数字 / 小数点输入
+  inputText(ch) {
+    const e = this.expression
+    if (ch === '.') {
+      const tail = this.lastNumberToken(e)
+      if (tail && tail.indexOf('.') >= 0) return
+      if (!tail) {
+        this.expression = e + '0.'
+        return
+      }
+    }
+    this.expression = e + ch
+  },
+
+  // 运算符输入：开头只允许负号；连续运算符则替换
+  inputOp(op) {
+    const e = this.expression
+    if (!e) {
+      if (op === '−') this.expression = '−'
+      return
+    }
+    let base = e
+    // 结尾是小数点则先去掉
+    if (base.charAt(base.length - 1) === '.') base = base.slice(0, -1)
+    const last = base.charAt(base.length - 1)
+    if (OPS.indexOf(last) >= 0) {
+      base = base.slice(0, -1)
+      if (!base && op !== '−') {
+        this.expression = base
+        return
+      }
+    }
+    this.expression = base + op
+  },
+
+  // 正负号：找到末尾数字，插入或移除取负号
+  toggleSign() {
+    const e = this.expression
+    const tail = this.lastNumberToken(e)
+    if (!tail) return
+    const start = e.length - tail.length
+    if (start > 0 && e.charAt(start - 1) === '-') {
+      const before2 = start >= 2 ? e.charAt(start - 2) : ''
+      if (start - 1 === 0 || OPS.indexOf(before2) >= 0) {
+        // 该 '-' 是取负号，移除
+        this.expression = e.slice(0, start - 1) + e.slice(start)
+        return
+      }
+    }
+    this.expression = e.slice(0, start) + '-' + e.slice(start)
+  },
+
+  lastNumberToken(e) {
+    const m = /\d*\.?\d+$/.exec(e)
+    return m ? m[0] : ''
+  },
+
+  // 等号：合法则把表达式替换为结果
+  commit() {
+    if (!this.expression) return
+    if (this.result !== '错误' && this.result !== '0') {
+      this.expression = this.result
+    }
+  },
+
+  // 刷新结果预览
+  refresh() {
+    if (!this.expression) {
+      this.result = '0'
+      return
+    }
+    try {
+      this.result = format(evaluate(this.expression))
+    } catch (err) {
+      this.result = '错误'
+    }
+  }
+}
+
+// ---------- 求值：递归下降，支持 + − × ÷、小数、取负 ----------
+
+function evaluate(src) {
+  const s = src.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-')
+  let i = 0
+
+  function parseExpr() {
+    let v = parseTerm()
+    while (s.charAt(i) === '+' || s.charAt(i) === '-') {
+      const op = s.charAt(i++)
+      const r = parseTerm()
+      v = op === '+' ? v + r : v - r
+    }
+    return v
+  }
+
+  function parseTerm() {
+    let v = parseFactor()
+    while (s.charAt(i) === '*' || s.charAt(i) === '/') {
+      const op = s.charAt(i++)
+      const r = parseFactor()
+      if (op === '/') {
+        if (r === 0) throw new Error('div0')
+        v = v / r
+      } else {
+        v = v * r
+      }
+    }
+    return v
+  }
+
+  function parseFactor() {
+    if (s.charAt(i) === '-') {
+      i++
+      return -parseFactor()
+    }
+    if (s.charAt(i) === '+') {
+      i++
+      return parseFactor()
+    }
+    return parseNumber()
+  }
+
+  function parseNumber() {
+    const m = /^\d*\.?\d+/.exec(s.slice(i))
+    if (!m) throw new Error('bad number')
+    i += m[0].length
+    return parseFloat(m[0])
+  }
+
+  const v = parseExpr()
+  if (i !== s.length || !isFinite(v)) throw new Error('bad expr')
+  return v
+}
+
+function format(v) {
+  const r = Math.round(v * 1e10) / 1e10
+  return String(r)
+}
+</script>
