@@ -62,3 +62,17 @@ ZQUHelper/
   `git checkout -b feat/<日期>-<主题>` → 提交 → push → `gh pr create`，由人工 review 后合并。
 - Windows/Android 端 UI 风格参考：[jiushuang/flutter_beautiful_ui](https://github.com/jiushuang/flutter_beautiful_ui)。
 - Vela 快应用使用官方 [AIoT-IDE](https://iot.mi.com/vela/quickapp/zh/guide/start/use-ide.html) 开发调试。
+
+## CI（GitHub Actions）
+
+`.github/workflows/ci.yml`：**每次提交自动编译全部目标**，产物在该次运行的 Artifacts 里下载：
+
+| Job | 运行环境 | 产物 |
+|-----|----------|------|
+| `server` | Go（windows runner） | `server-windows`：zquhelper-server.exe |
+| `client` | Flutter stable（windows runner） | `client-windows`：Windows 整包 zip；`client-android-apk`：release APK |
+| `vela` | Node 22 + AIoT-toolkit 2.0（ubuntu runner） | `vela-calculator-rpk`：手环调试安装包 .rpk |
+
+说明：
+- 客户端目前是占位阶段，CI 会先用 `flutter create` 引导生成工程再编译，正式代码落地后移除该步骤。
+- rpk 为 debug 包（工具链内置调试签名），发布签名待配置时再启用 `release` 模式。

@@ -29,5 +29,6 @@ build/
 # Vela 快应用
 dist/
 *.rpk
+.temp_*/
 sign/private.pem
 sign/certificate.pem
