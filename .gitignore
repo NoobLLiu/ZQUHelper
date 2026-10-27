@@ -10,3 +10,25 @@ __pycache__/
 node_modules/
 .env
 .DS_Store
+
+# WorkBuddy 自身数据目录（不入库）
+.workbuddy/
+
+# Go
+server/bin/
+*.exe
+*.test
+
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+build/
+
+# Vela 快应用
+dist/
+*.rpk
+.temp_*/
+sign/private.pem
+sign/certificate.pem

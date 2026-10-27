@@ -1,0 +1,127 @@
+name: CI
+
+on:
+  push:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------- 服务端 (Go) ----------
+  server:
+    name: Server (Go, Windows)
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.mod
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build
+        run: go build -trimpath -o bin/zquhelper-server.exe ./cmd/server
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-windows
+          path: server/bin/zquhelper-server.exe
+          if-no-files-found: error
+
+  # ---------- 客户端 (Flutter: Windows + Android) ----------
+  client:
+    name: Client (Flutter, Windows + Android)
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: apps/client
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java (for Android build)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # 占位阶段 apps/client 还没有完整 Flutter 工程，先在 CI 里引导生成。
+      # 正式客户端代码落地后删除此步骤。
+      - name: Bootstrap Flutter project (placeholder)
+        run: flutter create . --project-name zquhelper_client --org com.nooblliu --platforms windows,android
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Build Windows
+        run: flutter build windows --release
+
+      - name: Build Android APK
+        run: flutter build apk --release
+
+      - name: Zip Windows release
+        shell: pwsh
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath zquhelper-client-windows.zip
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-windows
+          path: apps/client/zquhelper-client-windows.zip
+          if-no-files-found: error
+
+      - name: Upload Android artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-android-apk
+          path: apps/client/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
+  # ---------- 手环端 (Vela 快应用 rpk) ----------
+  vela:
+    name: Vela rpk (Band)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/vela/calculator
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build rpk
+        run: npm run build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vela-calculator-rpk
+          path: apps/vela/**/dist/*.rpk
+          if-no-files-found: error
