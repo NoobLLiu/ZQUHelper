@@ -48,6 +48,11 @@ jobs:
     defaults:
       run:
         working-directory: apps/client
+    env:
+      # Pub 缓存默认在 C:，工程 checkout 在 D:，
+      # Kotlin 增量编译跨盘根算相对路径会崩（different roots），
+      # 把缓存挪到与工程同一盘符。
+      PUB_CACHE: ${{ github.workspace }}\.pub-cache
     steps:
       - uses: actions/checkout@v4
 
@@ -67,6 +72,10 @@ jobs:
       # 正式客户端代码落地后删除此步骤。
       - name: Bootstrap Flutter project (placeholder)
         run: flutter create . --project-name zquhelper_client --org com.nooblliu --platforms windows,android
+
+      # 双保险：关掉 Kotlin 增量编译，避免跨盘根缓存问题
+      - name: Disable Kotlin incremental compilation
+        run: Add-Content -Path android/gradle.properties -Value "`nkotlin.incremental=false"
 
       - name: Pub get
         run: flutter pub get
