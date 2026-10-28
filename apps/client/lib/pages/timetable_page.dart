@@ -13,6 +13,7 @@ class TimetablePage extends StatefulWidget {
 }
 
 class _TimetablePageState extends State<TimetablePage> {
+  final ScrollController _hScroll = ScrollController(); // 表头与网格横向同步
   Timetable? _tt;
   bool _loading = true;
   String? _error;
@@ -23,6 +24,12 @@ class _TimetablePageState extends State<TimetablePage> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _hScroll.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -139,6 +146,12 @@ class _TimetablePageState extends State<TimetablePage> {
     final courses = ws.courses;
     final maxPeriod = courses.fold<int>(8, (m, c) => c.endPeriod > m ? c.endPeriod : m);
 
+    // 网格几何常量：左列节次宽 / 每天列宽 / 每节行高
+    const leftW = 56.0, colW = 64.0, rowH = 56.0;
+    const headerH = 48.0;
+    final gridW = leftW + 7 * colW;
+    final gridH = maxPeriod * rowH;
+
     return Column(
       children: [
         // 周次切换条
@@ -163,38 +176,69 @@ class _TimetablePageState extends State<TimetablePage> {
             ],
           ),
         ),
+        // 表头：节 + 周一~周日（含日期），与网格共用横向滚动
+        SingleChildScrollView(
+          controller: _hScroll,
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: gridW,
+            height: headerH,
+            child: Row(children: [
+              _headerCell('节', leftW, headerH, theme),
+              for (var d = 1; d <= 7; d++)
+                _headerCell('周$d\n${ws.dates[d]?.substring(5) ?? ''}',
+                    colW, headerH, theme),
+            ]),
+          ),
+        ),
         Expanded(
           child: SingleChildScrollView(
             child: SingleChildScrollView(
+              controller: _hScroll,
               scrollDirection: Axis.horizontal,
               child: SizedBox(
-                width: 56 + 7 * 64.0,
-                child: Table(
-                  columnWidths: const {
-                    0: FixedColumnWidth(56),
-                  },
-                  border: TableBorder.all(
-                      color: theme.dividerColor.withValues(alpha: 0.3),
-                      width: 0.5),
-                  defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                width: gridW,
+                height: gridH,
+                child: Stack(
+                  clipBehavior: Clip.none,
                   children: [
-                    // 表头：星期 + 日期
-                    TableRow(
-                        decoration: BoxDecoration(
-                            color: theme.colorScheme.surfaceContainerHighest),
-                        children: [
-                          _cell('节', bold: true, theme: theme),
-                          for (var d = 1; d <= 7; d++)
-                            _cell('周$d\n${ws.dates[d]?.substring(5) ?? ''}',
-                                bold: true, theme: theme),
-                        ]),
-                    // 每节课一行
+                    // 背景网格线 + 左列节次号
+                    Positioned.fill(
+                      child: CustomPaint(
+                        painter: _GridPainter(
+                            leftW: leftW,
+                            colW: colW,
+                            rowH: rowH,
+                            rows: maxPeriod,
+                            color: theme.dividerColor.withValues(alpha: 0.35)),
+                      ),
+                    ),
                     for (var p = 1; p <= maxPeriod; p++)
-                      TableRow(children: [
-                        _cell('$p', theme: theme, dim: true),
-                        for (var d = 1; d <= 7; d++)
-                          _courseCell(courses, d, p, theme),
-                      ]),
+                      Positioned(
+                        left: 0,
+                        top: (p - 1) * rowH,
+                        width: leftW,
+                        height: rowH,
+                        child: Center(
+                          child: Text('$p',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: theme.colorScheme.outline)),
+                        ),
+                      ),
+                    // 课程卡片：连堂课按节数跨行占格
+                    for (final c in courses)
+                      if (c.weekday >= 1 &&
+                          c.weekday <= 7 &&
+                          c.startPeriod >= 1)
+                        Positioned(
+                          left: leftW + (c.weekday - 1) * colW + 2,
+                          top: (c.startPeriod - 1) * rowH + 2,
+                          width: colW - 4,
+                          height:
+                              (c.endPeriod - c.startPeriod + 1) * rowH - 4,
+                          child: _courseCard(c, theme),
+                        ),
                   ],
                 ),
               ),
@@ -205,34 +249,28 @@ class _TimetablePageState extends State<TimetablePage> {
     );
   }
 
-  /// 第 d 天第 p 节的格子：取覆盖该节的课程；只在该节为起始节时画卡片，
-  /// 其余被跨节覆盖的格子留空（卡片高度按节数自然占位较难，这里退化为
-  /// 每节课一格、起始节显示完整课程信息）。
-  Widget _courseCell(List<Course> courses, int day, int period, ThemeData theme) {
-    Course? hit;
-    for (final c in courses) {
-      if (c.weekday == day &&
-          c.startPeriod <= period &&
-          period <= c.endPeriod) {
-        hit = c;
-        break;
-      }
-    }
-    if (hit == null || hit.startPeriod != period) {
-      return const SizedBox(height: 56);
-    }
-    final span = hit.endPeriod - hit.startPeriod + 1;
-    return _courseCard(context, hit, span);
+  Widget _headerCell(String text, double w, double h, ThemeData theme) {
+    return Container(
+      width: w,
+      height: h,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        border: Border.all(
+            color: theme.dividerColor.withValues(alpha: 0.35), width: 0.5),
+      ),
+      child: Text(text,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+    );
   }
 
-  Widget _courseCard(BuildContext context, Course c, int span) {
+  /// 课程卡片：高度由外层 Positioned 决定（连堂课跨多行）。
+  Widget _courseCard(Course c, ThemeData theme) {
     final color = courseColor(c.name);
-    final theme = Theme.of(context);
     return GestureDetector(
       onTap: () => _showCourseDetail(c),
       child: Container(
-        height: 56.0 * span,
-        margin: const EdgeInsets.all(2),
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.18),
@@ -291,19 +329,45 @@ class _TimetablePageState extends State<TimetablePage> {
 
   String _weekdayCn(int d) =>
       const ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'][d.clamp(0, 7)];
+}
 
-  Widget _cell(String text, {required ThemeData theme, bool bold = false, bool dim = false}) {
-    return Container(
-      height: bold ? 48 : 56,
-      alignment: Alignment.center,
-      child: Text(text,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-              fontSize: 11,
-              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-              color: dim ? theme.colorScheme.outline : null)),
-    );
+/// 网格背景线：左列分隔 + 每天列分隔 + 每节行分隔。
+class _GridPainter extends CustomPainter {
+  _GridPainter({
+    required this.leftW,
+    required this.colW,
+    required this.rowH,
+    required this.rows,
+    required this.color,
+  });
+
+  final double leftW;
+  final double colW;
+  final double rowH;
+  final int rows;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 0.5;
+
+    // 横线（每节一行）
+    for (var r = 0; r <= rows; r++) {
+      final y = r * rowH;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+    // 竖线（左列 + 7 天）
+    for (var c = 0; c <= 8; c++) {
+      final x = c == 0 ? 0.0 : leftW + (c - 1) * colW;
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
   }
+
+  @override
+  bool shouldRepaint(covariant _GridPainter old) =>
+      old.rows != rows || old.rowH != rowH || old.color != color;
 }
 
 /// 按课程名散列取色，保证同一课程每周同色。
