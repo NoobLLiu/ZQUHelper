@@ -146,9 +146,9 @@ class _TimetablePageState extends State<TimetablePage> {
     final courses = ws.courses;
     final maxPeriod = courses.fold<int>(8, (m, c) => c.endPeriod > m ? c.endPeriod : m);
 
-    // 网格几何常量：左列节次宽 / 每天列宽 / 每节行高
-    const leftW = 56.0, colW = 64.0, rowH = 56.0;
-    const headerH = 48.0;
+    // 网格几何常量：左列节次宽 / 每天列宽 / 每节行高（参照拾光课表默认 70dp 节高）
+    const leftW = 44.0, colW = 72.0, rowH = 70.0;
+    const headerH = 45.0;
     final gridW = leftW + 7 * colW;
     final gridH = maxPeriod * rowH;
 
@@ -232,12 +232,12 @@ class _TimetablePageState extends State<TimetablePage> {
                           c.weekday <= 7 &&
                           c.startPeriod >= 1)
                         Positioned(
-                          left: leftW + (c.weekday - 1) * colW + 2,
-                          top: (c.startPeriod - 1) * rowH + 2,
-                          width: colW - 4,
+                          left: leftW + (c.weekday - 1) * colW + 1,
+                          top: (c.startPeriod - 1) * rowH + 1,
+                          width: colW - 2,
                           height:
-                              (c.endPeriod - c.startPeriod + 1) * rowH - 4,
-                          child: _courseCard(c, theme),
+                              (c.endPeriod - c.startPeriod + 1) * rowH - 2,
+                          child: _courseCard(c),
                         ),
                   ],
                 ),
@@ -265,31 +265,56 @@ class _TimetablePageState extends State<TimetablePage> {
     );
   }
 
-  /// 课程卡片：高度由外层 Positioned 决定（连堂课跨多行）。
-  Widget _courseCard(Course c, ThemeData theme) {
-    final color = courseColor(c.name);
+  /// 课程卡片：参照拾光课表的 CourseBlock 视觉——
+  /// 柔和纯色底 + 深色文字，课程名加粗自动换行占满剩余空间，
+  /// 老师 / 地点固定在底部（卡片太矮时隐藏，避免溢出）。
+  Widget _courseCard(Course c) {
+    final bg = courseColor(c.name);
+    const fg = Color(0xFF1F1F1F); // 柔和底色上用深色字，保证可读
     return GestureDetector(
       onTap: () => _showCourseDetail(c),
       child: Container(
-        padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.18),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withValues(alpha: 0.6), width: 1),
+          color: bg,
+          borderRadius: BorderRadius.circular(4),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(c.name,
-                maxLines: 3, overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontSize: 11, fontWeight: FontWeight.w600, color: color)),
-            const Spacer(),
-            if (c.classroom.isNotEmpty)
-              Text('@${c.classroom}',
-                  maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 10, color: theme.colorScheme.outline)),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: LayoutBuilder(builder: (context, box) {
+            final compact = box.maxHeight < 64; // 单节课的矮卡片
+            final nameSize = box.maxWidth >= 68 ? 13.0 : 12.0;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 课程名：优先占满剩余空间，多行自动换行，实在放不下才省略
+                Flexible(
+                  child: Text(
+                    c.name,
+                    style: TextStyle(
+                        fontSize: compact ? 11 : nameSize,
+                        fontWeight: FontWeight.bold,
+                        height: 1.2,
+                        color: fg),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (!compact && c.teacher.isNotEmpty)
+                  Text(c.teacher,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 10,
+                          height: 1.1,
+                          color: fg.withValues(alpha: 0.75))),
+                if (!compact && c.classroom.isNotEmpty)
+                  Text('@${c.classroom}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 10, height: 1.1, color: fg)),
+              ],
+            );
+          }),
         ),
       ),
     );
@@ -371,11 +396,14 @@ class _GridPainter extends CustomPainter {
 }
 
 /// 按课程名散列取色，保证同一课程每周同色。
+/// 调色板取自拾光课表 ScheduleGridStyle.DEFAULT_COLOR_MAPS 的浅色值（Apache-2.0），
+/// 柔和底色配深色文字，整块填充，视觉与拾光默认样式一致。
 Color courseColor(String name) {
   const palette = [
-    Color(0xFF4F6EF7), Color(0xFFE5484D), Color(0xFF30A46C),
-    Color(0xFFE5883D), Color(0xFF8E4EC6), Color(0xFF00A2C7),
-    Color(0xFFD6409F), Color(0xFF6E56CF),
+    Color(0xFFFFCC99), Color(0xFFFFE699), Color(0xFFE6FF99),
+    Color(0xFFCCFF99), Color(0xFF99FFB3), Color(0xFF99FFE6),
+    Color(0xFF99FFFF), Color(0xFF99E6FF), Color(0xFFB399FF),
+    Color(0xFFFF99E6), Color(0xFFFF99CC), Color(0xFFFF99B3),
   ];
   var h = 0;
   for (final rune in name.codeUnits) {

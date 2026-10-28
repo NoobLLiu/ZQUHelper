@@ -68,7 +68,7 @@ ZQUHelper/
 
 本项目是集锦项目，开发中引入/参考了以下优秀的开源项目（排名不分先后，均未修改其仓库内容）：
 
-- [ShiGuangSchedule/shiguangschedule](https://github.com/ShiGuangSchedule/shiguangschedule) —— 课程表模块的页面布局与交互参考。
+- [ShiGuangSchedule/shiguangschedule](https://github.com/ShiGuangSchedule/shiguangschedule) —— 课程表模块的页面布局与交互参考；课程卡片的柔和配色板（`ScheduleGridStyle.DEFAULT_COLOR_MAPS`）与卡片信息排布（课程名/教师/地点，对应其 Apache-2.0 许可的 `CourseBlock`）按同等视觉实现。
 - [jiushuang/flutter_beautiful_ui](https://github.com/jiushuang/flutter_beautiful_ui) —— 客户端整体 UI 风格参考。
 - 自研课程表抓取脚本（本地 GetTimeTable/zqu-timetable-scraper，已精简为肇庆学院专用 worker 收录于 `server/tools/zqu_fetch/`），其能力依赖：
   - [microsoft/playwright-python](https://github.com/microsoft/playwright-python) —— 真实浏览器自动化（登录、WebVPN 滑块）。
