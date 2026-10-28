@@ -57,6 +57,7 @@ func (s *Service) RefreshAsync(term, weeks string) bool {
 
 		s.mu.Lock()
 		s.running = false
+		s.last.Running = false
 		s.last.EndedAt = time.Now()
 		s.last.LogTail = tail
 		if err != nil {
