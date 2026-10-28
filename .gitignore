@@ -14,8 +14,16 @@ node_modules/
 # WorkBuddy 自身数据目录（不入库）
 .workbuddy/
 
+# 本地临时/测试目录（不入库）
+_tmp_art/
+dist/
+测试专用，AI勿动/
+
 # Go
 server/bin/
+server/config/config.yaml
+server/data/
+*.db
 *.exe
 *.test
 
